@@ -24,7 +24,21 @@ func GetRegistryCredentials(hostname string) (string, string, error) {
 	return cfg.GetRegistryCredentials(hostname)
 }
 
+// ResolveRegistryHost can be used to transform a docker registry host name into what is used for the docker config/cred helpers
+//
+// This is useful for using with containerd authorizers.
+// Natrually this only transforms docker hub URLs.
+func ResolveRegistryHost(host string) string {
+	switch host {
+	case "index.docker.io", "docker.io", "https://index.docker.io/v1/", "registry-1.docker.io":
+		return "https://index.docker.io/v1/"
+	}
+	return host
+}
+
 // GetRegistryCredentials gets credentials, if any, for the provided hostname
+//
+// Hostnames should already be resolved using `ResolveRegistryAuth`
 func (c *Config) GetRegistryCredentials(hostname string) (string, string, error) {
 	h, ok := c.CredentialHelpers[hostname]
 	if ok {
@@ -55,6 +69,8 @@ var (
 // If the passed in helper program is empty this will look up the default helper for the platform.
 //
 // If the credentials are not found, no error is returned, only empty credentials.
+//
+// Hostnames should already be resolved using `ResolveRegistryAuth`
 func GetCredentialsFromHelper(helper, hostname string) (string, string, error) {
 	if helper == "" {
 		helper = getCredentialHelper()
