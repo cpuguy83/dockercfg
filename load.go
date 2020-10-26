@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// UserHomeConfigPath returns toe path to the docker config in the current user's home dir.
+// UserHomeConfigPath returns the path to the docker config in the current user's home dir.
 func UserHomeConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
