@@ -2,6 +2,7 @@ package dockercfg
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"runtime"
@@ -42,6 +43,12 @@ func (c *Config) GetRegistryCredentials(hostname string) (string, string, error)
 	return auth.Username, auth.Password, nil
 }
 
+// Errors from credential helpers
+var (
+	ErrCredentialsNotFound         = errors.New("credentials not found in native keychain")
+	ErrCredentialsMissingServerURL = errors.New("no credentials server URL")
+)
+
 // GetCredentialsFromHelper attempts to lookup credentials from the passed in docker credential helper.
 //
 // The credential helpoer should just be the suffix name (no "docker-credential-").
@@ -64,6 +71,14 @@ func GetCredentialsFromHelper(helper, hostname string) (string, string, error) {
 
 	b, err := cmd.Output()
 	if err != nil {
+		s := strings.TrimSpace(string(b))
+
+		switch s {
+		case ErrCredentialsNotFound.Error(), ErrCredentialsMissingServerURL.Error():
+			return "", "", errors.New(s)
+		default:
+		}
+
 		return "", "", err
 	}
 
