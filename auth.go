@@ -53,6 +53,8 @@ var (
 //
 // The credential helpoer should just be the suffix name (no "docker-credential-").
 // If the passed in helper program is empty this will look up the default helper for the platform.
+//
+// If the credentials are not found, no error is returned, only empty credentials.
 func GetCredentialsFromHelper(helper, hostname string) (string, string, error) {
 	if helper == "" {
 		helper = getCredentialHelper()
@@ -74,7 +76,9 @@ func GetCredentialsFromHelper(helper, hostname string) (string, string, error) {
 		s := strings.TrimSpace(string(b))
 
 		switch s {
-		case ErrCredentialsNotFound.Error(), ErrCredentialsMissingServerURL.Error():
+		case ErrCredentialsNotFound.Error():
+			return "", "", nil
+		case ErrCredentialsMissingServerURL.Error():
 			return "", "", errors.New(s)
 		default:
 		}
