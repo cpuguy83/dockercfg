@@ -1,8 +1,10 @@
 package dockercfg
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -54,7 +56,39 @@ func (c *Config) GetRegistryCredentials(hostname string) (string, string, error)
 		return GetCredentialsFromHelper("", hostname)
 	}
 
-	return auth.Username, auth.Password, nil
+	if auth.Username != "" && auth.Password != "" {
+		return auth.Username, auth.Password, nil
+	}
+
+	return DecodeBase64Auth(auth)
+}
+
+// DecodeBase64Auth decodes the legacy file-based auth storage from the docker CLI.
+// It takes the "Auth" filed from AuthConfig and decodes that into a username and password.
+//
+// If "Auth" is empty, an empty user/pass will be returned, but not an error.
+func DecodeBase64Auth(auth AuthConfig) (string, string, error) {
+	if auth.Auth == "" {
+		return "", "", nil
+	}
+
+	decLen := base64.StdEncoding.DecodedLen(len(auth.Auth))
+	decoded := make([]byte, decLen)
+	n, err := base64.StdEncoding.Decode(decoded, []byte(auth.Auth))
+	if err != nil {
+		return "", "", fmt.Errorf("error decoding auth from file: %w", err)
+	}
+
+	if n != decLen {
+		return "", "", fmt.Errorf("decoded value does not match expected length, expected: %d, actual: %d", decLen, n)
+	}
+
+	split := strings.SplitN(string(decoded), ":", 2)
+	if len(split) != 2 {
+		return "", "", errors.New("invalid auth string")
+	}
+
+	return split[0], strings.Trim(split[1], "\x00"), nil
 }
 
 // Errors from credential helpers
