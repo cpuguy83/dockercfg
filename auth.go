@@ -11,6 +11,11 @@ import (
 	"strings"
 )
 
+// This is used by the docker CLI in casses where an oauth identity token is used.
+// In that case the username is stored litterally as `<token>`
+// When fetching the credentials we check for this value to determine if
+const tokenUsername = "<token>"
+
 // GetRegistryCredentials gets registry credentials for the passed in registry host.
 //
 // This will use `LoadDefaultConfig` to read registry auth details from the config.
@@ -41,6 +46,8 @@ func ResolveRegistryHost(host string) string {
 // GetRegistryCredentials gets credentials, if any, for the provided hostname
 //
 // Hostnames should already be resolved using `ResolveRegistryAuth`
+//
+// If the returned username string is empty, the password is an identity token.
 func (c *Config) GetRegistryCredentials(hostname string) (string, string, error) {
 	h, ok := c.CredentialHelpers[hostname]
 	if ok {
@@ -54,6 +61,10 @@ func (c *Config) GetRegistryCredentials(hostname string) (string, string, error)
 	auth, ok := c.AuthConfigs[hostname]
 	if !ok {
 		return GetCredentialsFromHelper("", hostname)
+	}
+
+	if auth.IdentityToken != "" {
+		return "", auth.IdentityToken, nil
 	}
 
 	if auth.Username != "" && auth.Password != "" {
@@ -105,6 +116,8 @@ var (
 // If the credentials are not found, no error is returned, only empty credentials.
 //
 // Hostnames should already be resolved using `ResolveRegistryAuth`
+//
+// If the username string is empty, the password string is an identity token.
 func GetCredentialsFromHelper(helper, hostname string) (string, string, error) {
 	if helper == "" {
 		helper = getCredentialHelper()
@@ -143,6 +156,11 @@ func GetCredentialsFromHelper(helper, hostname string) (string, string, error) {
 
 	if err := json.Unmarshal(b, &creds); err != nil {
 		return "", "", err
+	}
+
+	// When tokenUsername is used, the output is an identity token and the username is garbage
+	if creds.Username == tokenUsername {
+		creds.Username = ""
 	}
 
 	return creds.Username, creds.Secret, nil
